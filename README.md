@@ -89,9 +89,9 @@ jobs:
 ## Roadmap
 
 - **v1** — Core scanning, PR comments, job summaries, preview URL detection *(in progress)*
-- **v2 — AI fix suggestions** — axe-core's generic "how to fix" text is useful but not actionable. An optional LLM pass could examine the actual HTML snippet against the WCAG criterion and generate a specific, copy-pasteable fix (e.g. "Change `<div onclick>` to `<button>` and add `aria-label='Submit form'`"). Opt-in via `ai-suggestions: true`.
 - **v2 — Multi-page crawl** — Given a single entry URL, spider the site and audit discovered pages
 - **v2 — Historical trend tracking** — Track violation counts over time and surface regressions in PR comments
+- **v2 — AI fix suggestions** — axe-core's generic "how to fix" text is useful but not actionable. An optional LLM pass could examine the actual HTML snippet against the WCAG criterion and generate a specific, copy-pasteable fix (e.g. "Change `<div onclick>` to `<button>` and add `aria-label='Submit form'`"). Opt-in via `ai-suggestions: true`.
 
 ## Licence
 

@@ -1,0 +1,63 @@
+name: 'A11y Audit Action'
+description: 'Run automated WCAG 2.2 accessibility audits against rendered pages and post beautiful PR comments'
+author: 'Dion Bedford'
+
+branding:
+  icon: 'eye'
+  color: 'purple'
+
+inputs:
+  urls:
+    description: 'Newline-separated URLs to audit. Auto-detects Vercel/Netlify preview URLs if omitted.'
+    required: false
+  wcag-level:
+    description: 'WCAG conformance level (wcag2a, wcag2aa, wcag21aa, wcag22aa)'
+    required: false
+    default: 'wcag22aa'
+  impact-threshold:
+    description: 'Minimum impact to report: minor, moderate, serious, critical'
+    required: false
+    default: 'serious'
+  fail-on-violation:
+    description: 'Fail the check if violations are found'
+    required: false
+    default: 'true'
+  comment:
+    description: 'Post a PR comment with results'
+    required: false
+    default: 'true'
+  token:
+    description: 'GitHub token for commenting on PRs'
+    required: false
+    default: ${{ github.token }}
+
+outputs:
+  violations-count:
+    description: 'Total number of violations found'
+  passes-count:
+    description: 'Total number of passing rules'
+  result-json:
+    description: 'Full axe-core results as JSON'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Install Playwright Chromium
+      shell: bash
+      run: npx playwright install chromium --with-deps
+
+    - name: Install dependencies
+      shell: bash
+      run: npm ci
+      working-directory: ${{ github.action_path }}
+
+    - name: Run accessibility audit
+      shell: bash
+      run: node ${{ github.action_path }}/dist/index.js
+      env:
+        INPUT_URLS: ${{ inputs.urls }}
+        INPUT_WCAG-LEVEL: ${{ inputs.wcag-level }}
+        INPUT_IMPACT-THRESHOLD: ${{ inputs.impact-threshold }}
+        INPUT_FAIL-ON-VIOLATION: ${{ inputs.fail-on-violation }}
+        INPUT_COMMENT: ${{ inputs.comment }}
+        INPUT_TOKEN: ${{ inputs.token }}
