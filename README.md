@@ -78,17 +78,55 @@ jobs:
 
 ## How it works
 
-1. Launches headless Chromium via Playwright
-2. Navigates to each URL (with `networkidle` wait strategy)
-3. Runs axe-core with the configured WCAG tags
-4. Filters results by impact threshold
-5. Posts a formatted PR comment with collapsible violation details
-6. Writes a job summary table to the Actions run page
-7. Optionally fails the check if violations exceed threshold
+```
+  PR opened / Deploy succeeded
+            │
+            ▼
+  ┌─────────────────────┐
+  │   Resolve URLs      │  Explicit input or auto-detect
+  │   (config.ts)       │  from Vercel/Netlify preview
+  └─────────┬───────────┘
+            │
+            ▼
+  ┌─────────────────────┐
+  │   Launch Chromium    │  Headless via Playwright
+  │   (scanner.ts)      │
+  └─────────┬───────────┘
+            │
+            ▼         ┌───────────────────────┐
+  ┌─────────────────┐  │  For each URL:        │
+  │   Navigate page  │──│  networkidle (30s)    │
+  │   Run axe-core   │  │  fallback: DOMready   │
+  └─────────┬───────┘  └───────────────────────┘
+            │
+            ▼
+  ┌─────────────────────┐
+  │   Filter violations  │  By WCAG level + impact
+  │   (config.ts)       │  threshold (cumulative tags)
+  └─────────┬───────────┘
+            │
+        ┌───┴───┐
+        ▼       ▼
+  ┌──────────┐ ┌──────────────┐
+  │ Job      │ │ PR Comment   │  Collapsible sections
+  │ Summary  │ │ (comment.ts) │  grouped by severity
+  └──────────┘ └──────┬───────┘
+                      │
+                      ▼
+               ┌─────────────┐
+               │ Upsert via  │  Find by marker or
+               │ GitHub API  │  create new comment
+               │ (github.ts) │
+               └──────┬──────┘
+                      │
+                      ▼
+               Pass or Fail ✓✗
+```
 
 ## Roadmap
 
 - **v1** — Core scanning, PR comments, job summaries, preview URL detection *(in progress)*
+- **v2 — Baseline mode** — Store known violations in `.a11y-baseline.json` so PRs only report regressions, not pre-existing debt. Essential for adopting in large codebases
 - **v2 — Multi-page crawl** — Given a single entry URL, spider the site and audit discovered pages
 - **v2 — Historical trend tracking** — Track violation counts over time and surface regressions in PR comments
 - **v2 — AI fix suggestions** — axe-core's generic "how to fix" text is useful but not actionable. An optional LLM pass could examine the actual HTML snippet against the WCAG criterion and generate a specific, copy-pasteable fix (e.g. "Change `<div onclick>` to `<button>` and add `aria-label='Submit form'`"). Opt-in via `ai-suggestions: true`.
