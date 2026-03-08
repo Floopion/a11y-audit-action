@@ -30445,14 +30445,15 @@ async function runAudit(inputs) {
         browser = await playwright_1.chromium.launch({ headless: true });
         const pages = [];
         for (const url of inputs.urls) {
-            const page = await browser.newPage();
+            const context = await browser.newContext();
+            const page = await context.newPage();
             try {
                 const result = await scanPage(page, url, tags, inputs.impactThreshold);
                 if (result)
                     pages.push(result);
             }
             finally {
-                await page.close();
+                await context.close();
             }
         }
         const totalViolations = pages.reduce((sum, p) => sum + p.violations.length, 0);

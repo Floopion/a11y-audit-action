@@ -47,12 +47,13 @@ export async function runAudit(inputs: ActionInputs): Promise<AuditResult> {
     const pages: PageResult[] = [];
 
     for (const url of inputs.urls) {
-      const page = await browser.newPage();
+      const context = await browser.newContext();
+      const page = await context.newPage();
       try {
         const result = await scanPage(page, url, tags, inputs.impactThreshold);
         if (result) pages.push(result);
       } finally {
-        await page.close();
+        await context.close();
       }
     }
 
