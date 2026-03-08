@@ -33,6 +33,9 @@
     "@axe-core/playwright": "^4.10.1",
     "playwright": "^1.49.1"
   },
+  "overrides": {
+    "undici": "^7.0.0"
+  },
   "devDependencies": {
     "@types/node": "^25.3.5",
     "@vercel/ncc": "^0.38.3",
