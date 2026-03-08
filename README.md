@@ -1,0 +1,91 @@
+# a11y-audit-action
+
+A free, open-source GitHub Action that runs automated WCAG 2.2 accessibility audits against rendered pages and posts beautiful PR comments with the results.
+
+## Why this exists
+
+There's a gap in the ecosystem. Existing solutions either cost money, only lint static code, or require complex setup:
+
+| Solution | Free? | Scans rendered pages? | PR comments? | Zero-config? |
+|----------|-------|-----------------------|--------------|--------------|
+| Deque axe-devhub-action | No (paid) | Yes (needs Axe Watcher) | Yes | No |
+| Deque axe-linter | Yes | No (static lint only) | Yes | Yes |
+| GitHub accessibility-scanner | Yes (preview) | Yes | Creates issues, not comments | Moderate |
+| Microsoft accessibility-insights-action | Yes | Yes | Annotations only | Moderate |
+| A11yWatch Lite | Yes | Yes | Yes | No (needs CLI) |
+| Level CI | No (SaaS) | Yes | Yes | Yes |
+| **a11y-audit-action** | **Yes** | **Yes** | **Yes** | **Yes** |
+
+**No free, open-source action** gives you: rendered page scanning + beautiful PR comments + WCAG 2.2 AA + zero config. That's the niche this fills.
+
+## Features
+
+- Scans fully rendered pages using Playwright + axe-core
+- WCAG 2.2 AA conformance by default (configurable)
+- Collapsible PR comments grouped by impact severity
+- Auto-detects Vercel/Netlify preview URLs from `deployment_status` events
+- Upserts comments on re-runs (no duplicates)
+- Configurable impact threshold and fail behaviour
+- GitHub Actions job summary for every run
+
+## Quick start
+
+### With explicit URLs
+
+```yaml
+on: pull_request
+jobs:
+  a11y:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Floopion/a11y-audit-action@v1
+        with:
+          urls: https://your-site.com
+```
+
+### With Vercel preview URL (zero-config)
+
+```yaml
+on: deployment_status
+jobs:
+  a11y:
+    if: github.event.deployment_status.state == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Floopion/a11y-audit-action@v1
+```
+
+## Inputs
+
+| Input | Default | Description |
+|-------|---------|-------------|
+| `urls` | *(auto-detect)* | Newline-separated URLs to audit |
+| `wcag-level` | `wcag22aa` | WCAG conformance level (`wcag2a`, `wcag2aa`, `wcag21aa`, `wcag22aa`) |
+| `impact-threshold` | `serious` | Minimum impact to report: `minor` / `moderate` / `serious` / `critical` |
+| `fail-on-violation` | `true` | Fail the check if violations are found |
+| `comment` | `true` | Post a PR comment with results |
+| `token` | `github.token` | GitHub token for commenting |
+
+## Outputs
+
+| Output | Description |
+|--------|-------------|
+| `violations-count` | Total number of violations found |
+| `passes-count` | Total number of passing rules |
+| `result-json` | Full axe-core results as JSON |
+
+## How it works
+
+1. Launches headless Chromium via Playwright
+2. Navigates to each URL (with `networkidle` wait strategy)
+3. Runs axe-core with the configured WCAG tags
+4. Filters results by impact threshold
+5. Posts a formatted PR comment with collapsible violation details
+6. Writes a job summary table to the Actions run page
+7. Optionally fails the check if violations exceed threshold
+
+## Licence
+
+[MIT](./LICENSE)
