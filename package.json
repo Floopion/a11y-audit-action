@@ -1,0 +1,41 @@
+{
+  "name": "a11y-audit-action",
+  "version": "1.0.0",
+  "description": "GitHub Action for automated WCAG 2.2 accessibility audits with beautiful PR comments",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "ncc build src/index.ts -o dist --external playwright --external @axe-core/playwright",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Floopion/a11y-audit-action.git"
+  },
+  "keywords": [
+    "github-action",
+    "accessibility",
+    "a11y",
+    "wcag",
+    "axe-core",
+    "playwright"
+  ],
+  "author": "Dion Bedford",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Floopion/a11y-audit-action/issues"
+  },
+  "homepage": "https://github.com/Floopion/a11y-audit-action#readme",
+  "dependencies": {
+    "@actions/core": "^1.11.1",
+    "@actions/github": "^6.0.0",
+    "@axe-core/playwright": "^4.10.1",
+    "playwright": "^1.49.1"
+  },
+  "devDependencies": {
+    "@vercel/ncc": "^0.38.3",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}
