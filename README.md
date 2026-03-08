@@ -34,6 +34,11 @@ There's a gap in the ecosystem. Existing solutions either cost money, only lint 
 
 ```yaml
 on: pull_request
+
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
   a11y:
     runs-on: ubuntu-latest
@@ -48,6 +53,11 @@ jobs:
 
 ```yaml
 on: deployment_status
+
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
   a11y:
     if: github.event.deployment_status.state == 'success'
@@ -56,6 +66,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: Floopion/a11y-audit-action@v1
 ```
+
+> **Note:** The `pull-requests: write` permission is required for the action to post PR comments. Without it you'll get a "Resource not accessible by integration" error.
 
 ## Inputs
 
