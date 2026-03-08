@@ -89,19 +89,19 @@ jobs:
             │
             ▼
   ┌─────────────────────┐
-  │   Launch Chromium    │  Headless via Playwright
+  │   Launch Chromium   │  Headless via Playwright
   │   (scanner.ts)      │
   └─────────┬───────────┘
             │
-            ▼         ┌───────────────────────┐
-  ┌─────────────────┐  │  For each URL:        │
+            ▼           ┌───────────────────────┐
+  ┌─────────────────┐   │  For each URL:        │
   │   Navigate page  │──│  networkidle (30s)    │
   │   Run axe-core   │  │  fallback: DOMready   │
-  └─────────┬───────┘  └───────────────────────┘
+  └─────────┬───────┘   └───────────────────────┘
             │
             ▼
   ┌─────────────────────┐
-  │   Filter violations  │  By WCAG level + impact
+  │   Filter violations │  By WCAG level + impact
   │   (config.ts)       │  threshold (cumulative tags)
   └─────────┬───────────┘
             │
