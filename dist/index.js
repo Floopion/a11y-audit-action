@@ -43225,6 +43225,11 @@ function parseInputs() {
     if (!(impactThreshold in IMPACT_SEVERITY)) {
         throw new Error(`Invalid impact-threshold: ${impactThreshold}`);
     }
+    const maxPagesRaw = core.getInput('max-pages');
+    const maxPages = maxPagesRaw ? parseInt(maxPagesRaw, 10) : 10;
+    if (isNaN(maxPages) || maxPages < 1) {
+        throw new Error(`Invalid max-pages: ${maxPagesRaw}`);
+    }
     return {
         urls,
         wcagLevel,
@@ -43233,6 +43238,8 @@ function parseInputs() {
         comment: core.getBooleanInput('comment'),
         token: core.getInput('token'),
         baselinePath: core.getInput('baseline'),
+        crawl: core.getBooleanInput('crawl'),
+        maxPages,
     };
 }
 
@@ -43487,21 +43494,28 @@ const playwright_1 = __nccwpck_require__(9336);
 const playwright_2 = __importDefault(__nccwpck_require__(8825));
 const config_1 = __nccwpck_require__(2973);
 const NAV_TIMEOUT = 30_000;
-async function scanPage(page, url, tags, threshold) {
-    core.info(`Scanning ${url}...`);
+async function navigatePage(page, url) {
     try {
         await page.goto(url, { waitUntil: 'networkidle', timeout: NAV_TIMEOUT });
+        return true;
     }
     catch {
         core.warning(`Timed out waiting for networkidle on ${url}, falling back to domcontentloaded`);
         try {
             await page.goto(url, { waitUntil: 'domcontentloaded', timeout: NAV_TIMEOUT });
+            return true;
         }
         catch {
             core.warning(`Failed to load ${url} — skipping`);
-            return null;
+            return false;
         }
     }
+}
+async function scanPage(page, url, tags, threshold) {
+    core.info(`Scanning ${url}...`);
+    const loaded = await navigatePage(page, url);
+    if (!loaded)
+        return null;
     const results = await new playwright_2.default({ page }).withTags(tags).analyze();
     const violations = results.violations.filter((v) => (0, config_1.meetsImpactThreshold)(v.impact ?? undefined, threshold));
     return {
@@ -43512,29 +43526,74 @@ async function scanPage(page, url, tags, threshold) {
         inapplicable: results.inapplicable,
     };
 }
+function normaliseUrl(href, origin) {
+    try {
+        const parsed = new URL(href, origin);
+        if (parsed.origin !== origin)
+            return null;
+        if (!['http:', 'https:'].includes(parsed.protocol))
+            return null;
+        parsed.hash = '';
+        parsed.search = '';
+        return parsed.href;
+    }
+    catch {
+        return null;
+    }
+}
+async function discoverLinks(page, origin) {
+    const hrefs = await page.$$eval('a[href]', (anchors) => anchors.map((a) => a.getAttribute('href') ?? ''));
+    const urls = new Set();
+    for (const href of hrefs) {
+        const normalised = normaliseUrl(href, origin);
+        if (normalised)
+            urls.add(normalised);
+    }
+    return [...urls];
+}
 async function runAudit(inputs) {
     const tags = (0, config_1.resolveWcagTags)(inputs.wcagLevel);
     core.info(`WCAG tags: ${tags.join(', ')}`);
     core.info(`Impact threshold: ${inputs.impactThreshold}`);
+    if (inputs.crawl) {
+        core.info(`Crawl enabled — max ${inputs.maxPages} pages`);
+    }
     let browser;
     try {
         browser = await playwright_1.chromium.launch({ headless: true });
-        const pages = [];
-        for (const url of inputs.urls) {
+        const results = [];
+        const visited = new Set();
+        const queue = [...inputs.urls];
+        while (queue.length > 0 && results.length < (inputs.crawl ? inputs.maxPages : inputs.urls.length)) {
+            const url = queue.shift();
+            if (visited.has(url))
+                continue;
+            visited.add(url);
             const context = await browser.newContext();
             const page = await context.newPage();
             try {
                 const result = await scanPage(page, url, tags, inputs.impactThreshold);
                 if (result)
-                    pages.push(result);
+                    results.push(result);
+                if (inputs.crawl && results.length < inputs.maxPages) {
+                    const origin = new URL(url).origin;
+                    const links = await discoverLinks(page, origin);
+                    for (const link of links) {
+                        if (!visited.has(link))
+                            queue.push(link);
+                    }
+                }
             }
             finally {
                 await context.close();
             }
         }
-        const totalViolations = pages.reduce((sum, p) => sum + p.violations.length, 0);
-        const totalPasses = pages.reduce((sum, p) => sum + p.passes.length, 0);
-        return { pages, totalViolations, totalPasses };
+        if (inputs.crawl) {
+            core.info(`Crawl complete — scanned ${results.length} page${results.length === 1 ? '' : 's'}`);
+        }
+        const totalViolations = results.reduce((sum, p) => sum + p.violations.length, 0);
+        const totalPasses = results.reduce((sum, p) => sum + p.passes.length, 0);
+        return { pages: results, totalViolations, totalPasses };
     }
     finally {
         await browser?.close();

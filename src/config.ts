@@ -85,6 +85,12 @@ export function parseInputs(): ActionInputs {
     throw new Error(`Invalid impact-threshold: ${impactThreshold}`);
   }
 
+  const maxPagesRaw = core.getInput('max-pages');
+  const maxPages = maxPagesRaw ? parseInt(maxPagesRaw, 10) : 10;
+  if (isNaN(maxPages) || maxPages < 1) {
+    throw new Error(`Invalid max-pages: ${maxPagesRaw}`);
+  }
+
   return {
     urls,
     wcagLevel,
@@ -93,5 +99,7 @@ export function parseInputs(): ActionInputs {
     comment: core.getBooleanInput('comment'),
     token: core.getInput('token'),
     baselinePath: core.getInput('baseline'),
+    crawl: core.getBooleanInput('crawl'),
+    maxPages,
   };
 }

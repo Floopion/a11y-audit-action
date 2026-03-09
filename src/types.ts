@@ -12,6 +12,8 @@ export interface ActionInputs {
   comment: boolean;
   token: string;
   baselinePath: string;
+  crawl: boolean;
+  maxPages: number;
 }
 
 export interface PageResult {
