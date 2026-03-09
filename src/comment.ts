@@ -1,5 +1,5 @@
 import type { Result } from 'axe-core';
-import type { AuditResult, ImpactLevel, WcagLevel } from './types';
+import type { AuditResult, BaselineResult, ImpactLevel, WcagLevel } from './types';
 
 const COMMENT_MARKER = '<!-- a11y-audit-action -->';
 const MAX_COMMENT_LENGTH = 60_000;
@@ -59,30 +59,36 @@ function groupByImpact(violations: Result[]): Map<string, Result[]> {
   return grouped;
 }
 
-export function formatComment(result: AuditResult, wcagLevel: WcagLevel): string {
-  const allViolations = result.pages.flatMap((p) => p.violations);
-  const passed = result.totalViolations === 0;
+export function formatComment(result: AuditResult, wcagLevel: WcagLevel, baselineResult?: BaselineResult): string {
+  const pages = baselineResult ? baselineResult.newPages : result.pages;
+  const violationCount = baselineResult ? baselineResult.newViolations : result.totalViolations;
+  const passed = violationCount === 0;
 
   let md = `${COMMENT_MARKER}\n`;
   md += passed
     ? `## ✅ Accessibility audit passed\n\n`
-    : `## ❌ Accessibility audit found ${result.totalViolations} violation${result.totalViolations === 1 ? '' : 's'}\n\n`;
+    : `## ❌ Accessibility audit found ${violationCount} new violation${violationCount === 1 ? '' : 's'}\n\n`;
 
   md += `**${result.pages.length} page${result.pages.length === 1 ? '' : 's'}** scanned · `;
   md += `**${result.totalPasses}** rules passed · `;
-  md += `**${result.totalViolations}** violation${result.totalViolations === 1 ? '' : 's'} · `;
-  md += `WCAG level: \`${wcagLevel}\`\n\n`;
+  md += `**${violationCount}** new violation${violationCount === 1 ? '' : 's'}`;
+  if (baselineResult && baselineResult.baselineViolations > 0) {
+    md += ` · **${baselineResult.baselineViolations}** in baseline`;
+  }
+  md += ` · WCAG level: \`${wcagLevel}\`\n\n`;
 
   if (passed) {
-    md += 'No accessibility violations found. Nice work!\n';
+    md += 'No new accessibility violations found. Nice work!\n';
+    if (baselineResult && baselineResult.baselineViolations > 0) {
+      md += `\n*${baselineResult.baselineViolations} known violation${baselineResult.baselineViolations === 1 ? '' : 's'} in baseline (not shown).*\n`;
+    }
     return md;
   }
 
-  // Group violations by page, then by impact
-  for (const page of result.pages) {
+  for (const page of pages) {
     if (page.violations.length === 0) continue;
 
-    if (result.pages.length > 1) {
+    if (pages.length > 1) {
       md += `### 📄 ${page.url}\n\n`;
     }
 
@@ -98,6 +104,10 @@ export function formatComment(result: AuditResult, wcagLevel: WcagLevel): string
 
       md += `</details>\n\n`;
     }
+  }
+
+  if (baselineResult && baselineResult.baselineViolations > 0) {
+    md += `\n*${baselineResult.baselineViolations} known violation${baselineResult.baselineViolations === 1 ? '' : 's'} in baseline (not shown).*\n`;
   }
 
   if (md.length > MAX_COMMENT_LENGTH) {

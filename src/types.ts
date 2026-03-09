@@ -11,6 +11,7 @@ export interface ActionInputs {
   failOnViolation: boolean;
   comment: boolean;
   token: string;
+  baselinePath: string;
 }
 
 export interface PageResult {
@@ -25,4 +26,22 @@ export interface AuditResult {
   pages: PageResult[];
   totalViolations: number;
   totalPasses: number;
+}
+
+export interface BaselineEntry {
+  ruleId: string;
+  selector: string;
+  impact: string;
+}
+
+export interface BaselineFile {
+  version: 1;
+  createdAt: string;
+  entries: BaselineEntry[];
+}
+
+export interface BaselineResult {
+  newViolations: number;
+  baselineViolations: number;
+  newPages: PageResult[];
 }
