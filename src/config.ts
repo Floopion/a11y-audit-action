@@ -92,5 +92,6 @@ export function parseInputs(): ActionInputs {
     failOnViolation: core.getBooleanInput('fail-on-violation'),
     comment: core.getBooleanInput('comment'),
     token: core.getInput('token'),
+    baselinePath: core.getInput('baseline'),
   };
 }

@@ -42850,6 +42850,136 @@ function wrappy (fn, cb) {
 
 /***/ }),
 
+/***/ 9860:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.loadBaseline = loadBaseline;
+exports.applyBaseline = applyBaseline;
+exports.generateBaseline = generateBaseline;
+const core = __importStar(__nccwpck_require__(7484));
+const fs = __importStar(__nccwpck_require__(9896));
+function fingerprint(ruleId, selector) {
+    return `${ruleId}::${selector}`;
+}
+function extractFingerprints(entries) {
+    return new Set(entries.map((e) => fingerprint(e.ruleId, e.selector)));
+}
+function loadBaseline(path) {
+    if (!path)
+        return null;
+    try {
+        const content = fs.readFileSync(path, 'utf-8');
+        const data = JSON.parse(content);
+        if (data.version !== 1 || !Array.isArray(data.entries)) {
+            core.warning(`Invalid baseline file format at ${path} — ignoring`);
+            return null;
+        }
+        core.info(`Loaded baseline with ${data.entries.length} known violations from ${path}`);
+        return data;
+    }
+    catch (err) {
+        if (err.code === 'ENOENT') {
+            core.info(`No baseline file found at ${path} — treating all violations as new`);
+            return null;
+        }
+        core.warning(`Failed to read baseline file at ${path}: ${err instanceof Error ? err.message : err}`);
+        return null;
+    }
+}
+function violationToEntries(violation) {
+    return violation.nodes.map((node) => ({
+        ruleId: violation.id,
+        selector: node.target.join(' > '),
+        impact: violation.impact ?? 'unknown',
+    }));
+}
+function applyBaseline(result, baseline) {
+    if (!baseline) {
+        return {
+            newViolations: result.totalViolations,
+            baselineViolations: 0,
+            newPages: result.pages,
+        };
+    }
+    const known = extractFingerprints(baseline.entries);
+    let newViolations = 0;
+    let baselineViolations = 0;
+    const newPages = [];
+    for (const page of result.pages) {
+        const newPageViolations = [];
+        for (const violation of page.violations) {
+            const newNodes = violation.nodes.filter((node) => !known.has(fingerprint(violation.id, node.target.join(' > '))));
+            const baselineNodes = violation.nodes.length - newNodes.length;
+            baselineViolations += baselineNodes;
+            if (newNodes.length > 0) {
+                newViolations++;
+                newPageViolations.push({ ...violation, nodes: newNodes });
+            }
+            else if (baselineNodes > 0) {
+                baselineViolations++;
+            }
+        }
+        newPages.push({
+            ...page,
+            violations: newPageViolations,
+        });
+    }
+    core.info(`Baseline: ${baselineViolations} known, ${newViolations} new`);
+    return { newViolations, baselineViolations, newPages };
+}
+function generateBaseline(result) {
+    const entries = [];
+    for (const page of result.pages) {
+        for (const violation of page.violations) {
+            entries.push(...violationToEntries(violation));
+        }
+    }
+    return {
+        version: 1,
+        createdAt: new Date().toISOString(),
+        entries,
+    };
+}
+
+
+/***/ }),
+
 /***/ 2246:
 /***/ ((__unused_webpack_module, exports) => {
 
@@ -42907,26 +43037,32 @@ function groupByImpact(violations) {
     }
     return grouped;
 }
-function formatComment(result, wcagLevel) {
-    const allViolations = result.pages.flatMap((p) => p.violations);
-    const passed = result.totalViolations === 0;
+function formatComment(result, wcagLevel, baselineResult) {
+    const pages = baselineResult ? baselineResult.newPages : result.pages;
+    const violationCount = baselineResult ? baselineResult.newViolations : result.totalViolations;
+    const passed = violationCount === 0;
     let md = `${COMMENT_MARKER}\n`;
     md += passed
         ? `## ✅ Accessibility audit passed\n\n`
-        : `## ❌ Accessibility audit found ${result.totalViolations} violation${result.totalViolations === 1 ? '' : 's'}\n\n`;
+        : `## ❌ Accessibility audit found ${violationCount} new violation${violationCount === 1 ? '' : 's'}\n\n`;
     md += `**${result.pages.length} page${result.pages.length === 1 ? '' : 's'}** scanned · `;
     md += `**${result.totalPasses}** rules passed · `;
-    md += `**${result.totalViolations}** violation${result.totalViolations === 1 ? '' : 's'} · `;
-    md += `WCAG level: \`${wcagLevel}\`\n\n`;
+    md += `**${violationCount}** new violation${violationCount === 1 ? '' : 's'}`;
+    if (baselineResult && baselineResult.baselineViolations > 0) {
+        md += ` · **${baselineResult.baselineViolations}** in baseline`;
+    }
+    md += ` · WCAG level: \`${wcagLevel}\`\n\n`;
     if (passed) {
-        md += 'No accessibility violations found. Nice work!\n';
+        md += 'No new accessibility violations found. Nice work!\n';
+        if (baselineResult && baselineResult.baselineViolations > 0) {
+            md += `\n*${baselineResult.baselineViolations} known violation${baselineResult.baselineViolations === 1 ? '' : 's'} in baseline (not shown).*\n`;
+        }
         return md;
     }
-    // Group violations by page, then by impact
-    for (const page of result.pages) {
+    for (const page of pages) {
         if (page.violations.length === 0)
             continue;
-        if (result.pages.length > 1) {
+        if (pages.length > 1) {
             md += `### 📄 ${page.url}\n\n`;
         }
         const grouped = groupByImpact(page.violations);
@@ -42938,6 +43074,9 @@ function formatComment(result, wcagLevel) {
             }
             md += `</details>\n\n`;
         }
+    }
+    if (baselineResult && baselineResult.baselineViolations > 0) {
+        md += `\n*${baselineResult.baselineViolations} known violation${baselineResult.baselineViolations === 1 ? '' : 's'} in baseline (not shown).*\n`;
     }
     if (md.length > MAX_COMMENT_LENGTH) {
         md = md.slice(0, MAX_COMMENT_LENGTH) + '\n\n*...output truncated to fit GitHub comment limits*\n';
@@ -43093,6 +43232,7 @@ function parseInputs() {
         failOnViolation: core.getBooleanInput('fail-on-violation'),
         comment: core.getBooleanInput('comment'),
         token: core.getInput('token'),
+        baselinePath: core.getInput('baseline'),
     };
 }
 
@@ -43257,13 +43397,21 @@ const config_1 = __nccwpck_require__(2973);
 const scanner_1 = __nccwpck_require__(4105);
 const comment_1 = __nccwpck_require__(2246);
 const github_1 = __nccwpck_require__(9248);
+const baseline_1 = __nccwpck_require__(9860);
 async function run() {
     const inputs = (0, config_1.parseInputs)();
     core.info(`Auditing ${inputs.urls.length} URL${inputs.urls.length === 1 ? '' : 's'}...`);
     const result = await (0, scanner_1.runAudit)(inputs);
-    core.setOutput('violations-count', result.totalViolations.toString());
+    // Baseline comparison
+    const baseline = (0, baseline_1.loadBaseline)(inputs.baselinePath);
+    const baselineResult = (0, baseline_1.applyBaseline)(result, baseline);
+    const effectiveViolations = baselineResult.newViolations;
+    core.setOutput('violations-count', effectiveViolations.toString());
     core.setOutput('passes-count', result.totalPasses.toString());
     core.setOutput('result-json', JSON.stringify(result));
+    core.setOutput('new-violations-count', baselineResult.newViolations.toString());
+    core.setOutput('baseline-violations-count', baselineResult.baselineViolations.toString());
+    core.setOutput('baseline-json', JSON.stringify((0, baseline_1.generateBaseline)(result)));
     // Job summary — always written
     const summary = (0, comment_1.formatJobSummary)(result, inputs.wcagLevel);
     await core.summary.addRaw(summary).write();
@@ -43271,7 +43419,7 @@ async function run() {
     if (inputs.comment) {
         const prNumber = await (0, github_1.resolvePrNumber)(inputs.token);
         if (prNumber) {
-            const commentBody = (0, comment_1.formatComment)(result, inputs.wcagLevel);
+            const commentBody = (0, comment_1.formatComment)(result, inputs.wcagLevel, baselineResult);
             await (0, github_1.upsertComment)(inputs.token, prNumber, commentBody);
             core.info(`Posted audit results to PR #${prNumber}`);
         }
@@ -43279,9 +43427,9 @@ async function run() {
             core.warning('Could not determine PR number — skipping comment');
         }
     }
-    // Fail check
-    if (inputs.failOnViolation && result.totalViolations > 0) {
-        core.setFailed(`Accessibility audit found ${result.totalViolations} violation${result.totalViolations === 1 ? '' : 's'}`);
+    // Fail check — only on new violations (not baseline)
+    if (inputs.failOnViolation && effectiveViolations > 0) {
+        core.setFailed(`Accessibility audit found ${effectiveViolations} new violation${effectiveViolations === 1 ? '' : 's'}`);
     }
 }
 run().catch((error) => {

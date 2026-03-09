@@ -26,6 +26,10 @@ inputs:
     description: 'Post a PR comment with results'
     required: false
     default: 'true'
+  baseline:
+    description: 'Path to baseline JSON file. Only new violations (not in baseline) will be reported.'
+    required: false
+    default: ''
   token:
     description: 'GitHub token for commenting on PRs'
     required: false
@@ -33,11 +37,17 @@ inputs:
 
 outputs:
   violations-count:
-    description: 'Total number of violations found'
+    description: 'Number of new violations (excludes baseline)'
   passes-count:
     description: 'Total number of passing rules'
   result-json:
     description: 'Full axe-core results as JSON'
+  new-violations-count:
+    description: 'Number of violations not in baseline'
+  baseline-violations-count:
+    description: 'Number of violations matched to baseline'
+  baseline-json:
+    description: 'Updated baseline JSON (pipe to a file to update your baseline)'
 
 runs:
   using: 'composite'
@@ -60,4 +70,5 @@ runs:
         INPUT_IMPACT-THRESHOLD: ${{ inputs.impact-threshold }}
         INPUT_FAIL-ON-VIOLATION: ${{ inputs.fail-on-violation }}
         INPUT_COMMENT: ${{ inputs.comment }}
+        INPUT_BASELINE: ${{ inputs.baseline }}
         INPUT_TOKEN: ${{ inputs.token }}
