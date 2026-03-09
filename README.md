@@ -22,6 +22,8 @@ There's a gap in the ecosystem. Existing solutions either cost money, only lint 
 
 - Scans fully rendered pages using Playwright + axe-core
 - WCAG 2.2 AA conformance by default (configurable)
+- **Multi-page crawl** — spider same-origin links from a seed URL
+- **Baseline mode** — track known violations so PRs only report regressions
 - Collapsible PR comments grouped by impact severity
 - Auto-detects Vercel/Netlify preview URLs from `deployment_status` events
 - Upserts comments on re-runs (no duplicates)
@@ -69,6 +71,31 @@ jobs:
 
 > **Note:** The `pull-requests: write` permission is required for the action to post PR comments. Without it you'll get a "Resource not accessible by integration" error.
 
+### With multi-page crawl
+
+```yaml
+- uses: Floopion/a11y-audit-action@v1
+  with:
+    urls: https://your-site.com
+    crawl: true
+    max-pages: 20
+```
+
+The crawler starts from your seed URL(s), discovers same-origin links, and audits each page — up to `max-pages`.
+
+### With baseline mode
+
+Track known violations so only **new** regressions fail the build:
+
+```yaml
+- uses: Floopion/a11y-audit-action@v1
+  with:
+    urls: https://your-site.com
+    baseline: .a11y-baseline.json
+```
+
+On the first run, the action creates the baseline file. On subsequent runs, only violations **not** in the baseline are reported as new. Commit the baseline file to your repo and update it as you fix issues.
+
 ## Inputs
 
 | Input | Default | Description |
@@ -78,15 +105,21 @@ jobs:
 | `impact-threshold` | `serious` | Minimum impact to report: `minor` / `moderate` / `serious` / `critical` |
 | `fail-on-violation` | `true` | Fail the check if violations are found |
 | `comment` | `true` | Post a PR comment with results |
+| `baseline` | *(none)* | Path to baseline JSON file — only new violations are reported |
+| `crawl` | `false` | Crawl same-origin links discovered on each page |
+| `max-pages` | `10` | Maximum pages to scan when crawling |
 | `token` | `github.token` | GitHub token for commenting |
 
 ## Outputs
 
 | Output | Description |
 |--------|-------------|
-| `violations-count` | Total number of violations found |
+| `violations-count` | Total number of violations found (excludes baseline) |
 | `passes-count` | Total number of passing rules |
 | `result-json` | Full axe-core results as JSON |
+| `new-violations-count` | Violations not in baseline |
+| `baseline-violations-count` | Violations matched to baseline |
+| `baseline-json` | Updated baseline JSON (pipe to a file to update your baseline) |
 
 ## How it works
 
@@ -111,11 +144,20 @@ jobs:
   │   Run axe-core   │  │  fallback: DOMready   │
   └─────────┬───────┘   └───────────────────────┘
             │
+            ├── crawl: true? ──▶ Discover same-origin
+            │                    links, enqueue up to
+            │                    max-pages, loop ▲
             ▼
   ┌─────────────────────┐
   │   Filter violations │  By WCAG level + impact
   │   (config.ts)       │  threshold (cumulative tags)
   └─────────┬───────────┘
+            │
+            ▼
+  ┌─────────────────────┐
+  │   Baseline compare  │  baseline set? compare
+  │   (baseline.ts)     │  fingerprints, separate
+  └─────────┬───────────┘  new vs known violations
             │
         ┌───┴───┐
         ▼       ▼
@@ -133,15 +175,16 @@ jobs:
                       │
                       ▼
                Pass or Fail ✓✗
+         (only new violations fail)
 ```
 
 ## Roadmap
 
-- **v1** — Core scanning, PR comments, job summaries, preview URL detection *(in progress)*
-- **v2 — Baseline mode** — Store known violations in `.a11y-baseline.json` so PRs only report regressions, not pre-existing debt. Essential for adopting in large codebases
-- **v2 — Multi-page crawl** — Given a single entry URL, spider the site and audit discovered pages
-- **v2 — Historical trend tracking** — Track violation counts over time and surface regressions in PR comments
-- **v2 — AI fix suggestions** — axe-core's generic "how to fix" text is useful but not actionable. An optional LLM pass could examine the actual HTML snippet against the WCAG criterion and generate a specific, copy-pasteable fix (e.g. "Change `<div onclick>` to `<button>` and add `aria-label='Submit form'`"). Opt-in via `ai-suggestions: true`.
+- ~~**v1.0** — Core scanning, PR comments, job summaries, preview URL detection~~ ✓
+- ~~**v1.1 — Baseline mode** — Store known violations in `.a11y-baseline.json` so PRs only report regressions~~ ✓
+- ~~**v1.1 — Multi-page crawl** — BFS spider from seed URLs, same-origin, configurable depth~~ ✓
+- **Next — Historical trend tracking** — Track violation counts over time and surface regressions in PR comments
+- **Next — AI fix suggestions** — An optional LLM pass that examines the actual HTML snippet against the WCAG criterion and generates specific, copy-pasteable fixes. Opt-in via `ai-suggestions: true`
 
 ## Licence
 
