@@ -1,6 +1,6 @@
 # a11y-audit-action
 
-A free, open-source GitHub Action that runs automated WCAG 2.2 accessibility audits against rendered pages and posts beautiful PR comments with the results.
+A free, open-source GitHub Action that runs automated WCAG 2.2 accessibility audits against rendered pages and posts results directly to your PR.
 
 ## Why this exists
 
@@ -16,7 +16,7 @@ There's a gap in the ecosystem. Existing solutions either cost money, only lint 
 | Level CI | No (SaaS) | Yes | Yes | Yes |
 | **a11y-audit-action** | **Yes** | **Yes** | **Yes** | **Yes** |
 
-**No free, open-source action** gives you: rendered page scanning + beautiful PR comments + WCAG 2.2 AA + zero config. That's the niche this fills.
+**No free, open-source action** gives you: rendered page scanning + PR comments + WCAG 2.2 AA + zero config. That's the niche this fills.
 
 ## Features
 
