@@ -43254,6 +43254,7 @@ function parseInputs() {
         baselinePath: core.getInput('baseline'),
         crawl: core.getBooleanInput('crawl'),
         maxPages,
+        auditScope: core.getInput('audit-scope'),
         aiApiKey,
         aiBaseUrl: core.getInput('ai-base-url') || 'https://api.openai.com/v1',
         aiModel: core.getInput('ai-model') || 'gpt-4o-mini',
@@ -43533,12 +43534,15 @@ async function navigatePage(page, url) {
         }
     }
 }
-async function scanPage(page, url, tags, threshold) {
+async function scanPage(page, url, tags, threshold, scope) {
     core.info(`Scanning ${url}...`);
     const loaded = await navigatePage(page, url);
     if (!loaded)
         return null;
-    const results = await new playwright_2.default({ page }).withTags(tags).analyze();
+    let builder = new playwright_2.default({ page }).withTags(tags);
+    if (scope)
+        builder = builder.include(scope);
+    const results = await builder.analyze();
     const violations = results.violations.filter((v) => (0, config_1.meetsImpactThreshold)(v.impact ?? undefined, threshold));
     return {
         url,
@@ -43577,6 +43581,8 @@ async function runAudit(inputs) {
     const tags = (0, config_1.resolveWcagTags)(inputs.wcagLevel);
     core.info(`WCAG tags: ${tags.join(', ')}`);
     core.info(`Impact threshold: ${inputs.impactThreshold}`);
+    if (inputs.auditScope)
+        core.info(`Audit scope: ${inputs.auditScope}`);
     if (inputs.crawl) {
         core.info(`Crawl enabled — max ${inputs.maxPages} pages`);
     }
@@ -43594,7 +43600,7 @@ async function runAudit(inputs) {
             const context = await browser.newContext();
             const page = await context.newPage();
             try {
-                const result = await scanPage(page, url, tags, inputs.impactThreshold);
+                const result = await scanPage(page, url, tags, inputs.impactThreshold, inputs.auditScope);
                 if (result)
                     results.push(result);
                 if (inputs.crawl && results.length < inputs.maxPages) {

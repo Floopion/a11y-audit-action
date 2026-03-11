@@ -22,13 +22,15 @@ async function navigatePage(page: Page, url: string): Promise<boolean> {
   }
 }
 
-async function scanPage(page: Page, url: string, tags: string[], threshold: ActionInputs['impactThreshold']): Promise<PageResult | null> {
+async function scanPage(page: Page, url: string, tags: string[], threshold: ActionInputs['impactThreshold'], scope?: string): Promise<PageResult | null> {
   core.info(`Scanning ${url}...`);
 
   const loaded = await navigatePage(page, url);
   if (!loaded) return null;
 
-  const results = await new AxeBuilder({ page }).withTags(tags).analyze();
+  let builder = new AxeBuilder({ page }).withTags(tags);
+  if (scope) builder = builder.include(scope);
+  const results = await builder.analyze();
   const violations = results.violations.filter((v) => meetsImpactThreshold(v.impact ?? undefined, threshold));
 
   return {
@@ -70,6 +72,7 @@ export async function runAudit(inputs: ActionInputs): Promise<AuditResult> {
   const tags = resolveWcagTags(inputs.wcagLevel);
   core.info(`WCAG tags: ${tags.join(', ')}`);
   core.info(`Impact threshold: ${inputs.impactThreshold}`);
+  if (inputs.auditScope) core.info(`Audit scope: ${inputs.auditScope}`);
   if (inputs.crawl) {
     core.info(`Crawl enabled — max ${inputs.maxPages} pages`);
   }
@@ -90,7 +93,7 @@ export async function runAudit(inputs: ActionInputs): Promise<AuditResult> {
       const context = await browser.newContext();
       const page = await context.newPage();
       try {
-        const result = await scanPage(page, url, tags, inputs.impactThreshold);
+        const result = await scanPage(page, url, tags, inputs.impactThreshold, inputs.auditScope);
         if (result) results.push(result);
 
         if (inputs.crawl && results.length < inputs.maxPages) {

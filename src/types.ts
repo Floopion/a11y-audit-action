@@ -14,6 +14,7 @@ export interface ActionInputs {
   baselinePath: string;
   crawl: boolean;
   maxPages: number;
+  auditScope: string;
   aiApiKey: string;
   aiBaseUrl: string;
   aiModel: string;
