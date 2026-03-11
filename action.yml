@@ -80,13 +80,14 @@ outputs:
 runs:
   using: 'composite'
   steps:
-    - name: Install Playwright Chromium
-      shell: bash
-      run: npx playwright install chromium --with-deps
-
     - name: Install dependencies
       shell: bash
       run: npm ci
+      working-directory: ${{ github.action_path }}
+
+    - name: Install Playwright Chromium
+      shell: bash
+      run: npx playwright install chromium --with-deps
       working-directory: ${{ github.action_path }}
 
     - name: Run accessibility audit
