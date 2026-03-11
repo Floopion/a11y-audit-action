@@ -43020,7 +43020,8 @@ function formatViolation(violation, aiSuggestion) {
     md += '| Element | Fix |\n|---------|-----|\n';
     for (const node of nodes) {
         const selector = `\`${truncate(node.target.join(' > '), MAX_HTML_LENGTH)}\``;
-        const fix = node.failureSummary?.split('\n')[0] ?? '';
+        const fixLines = (node.failureSummary ?? '').split('\n').map((l) => l.trim()).filter(Boolean);
+        const fix = fixLines.find((l) => !l.endsWith(':')) ?? fixLines[0] ?? '';
         md += `| ${selector} | ${fix} |\n`;
     }
     if (violation.nodes.length > MAX_NODES_PER_VIOLATION) {
@@ -43770,8 +43771,12 @@ async function generateSuggestions(pages, inputs) {
         baseURL: inputs.aiBaseUrl,
     });
     const systemPrompt = loadSystemPrompt(inputs.aiPromptFile, inputs.wcagLevel);
-    for (const page of pagesWithViolations) {
+    for (let i = 0; i < pagesWithViolations.length; i++) {
+        const page = pagesWithViolations[i];
         const userPrompt = buildPagePrompt(page);
+        // Delay between calls to respect free-tier rate limits
+        if (i > 0)
+            await new Promise((r) => setTimeout(r, 1500));
         try {
             const response = await client.chat.completions.create({
                 model: inputs.aiModel,
