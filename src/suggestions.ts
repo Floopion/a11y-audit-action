@@ -7,6 +7,32 @@ import type { ActionInputs, AiSuggestionsMap, PageResult, WcagLevel } from './ty
 
 const MAX_HTML_LENGTH = 300;
 const MAX_VIOLATIONS_PER_BATCH = 15;
+const BASE_DELAY_MS = 3_000;
+const MAX_RETRIES = 3;
+
+function isRateLimitError(error: unknown): boolean {
+  if (error && typeof error === 'object' && 'status' in error) {
+    return (error as { status: number }).status === 429;
+  }
+  return error instanceof Error && error.message.includes('429');
+}
+
+async function callWithBackoff<T>(fn: () => Promise<T>): Promise<T> {
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      if (isRateLimitError(error) && attempt < MAX_RETRIES) {
+        const backoff = Math.pow(2, attempt) * 15_000; // 15s, 30s, 60s
+        core.info(`  Rate limited — retrying in ${backoff / 1000}s...`);
+        await new Promise((r) => setTimeout(r, backoff));
+        continue;
+      }
+      throw error;
+    }
+  }
+  throw new Error('Unreachable');
+}
 
 function resolveActionPath(): string {
   return process.env.GITHUB_ACTION_PATH || path.resolve(__dirname, '..');
@@ -127,19 +153,20 @@ export async function generateSuggestions(
     const page = pagesWithViolations[i];
     const userPrompt = buildPagePrompt(page);
 
-    // Delay between calls to respect free-tier rate limits
-    if (i > 0) await new Promise((r) => setTimeout(r, 1500));
+    if (i > 0) await new Promise((r) => setTimeout(r, BASE_DELAY_MS));
 
     try {
-      const response = await client.chat.completions.create({
-        model: inputs.aiModel,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
-        temperature: 0.2,
-        max_tokens: 2000,
-      });
+      const response = await callWithBackoff(() =>
+        client.chat.completions.create({
+          model: inputs.aiModel,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt },
+          ],
+          temperature: 0.2,
+          max_tokens: 2000,
+        }),
+      );
 
       const content = response.choices[0]?.message?.content;
       if (content) {
