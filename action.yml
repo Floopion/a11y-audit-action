@@ -38,6 +38,10 @@ inputs:
     description: 'Maximum pages to scan when crawling (ignored if crawl is false)'
     required: false
     default: '10'
+  audit-scope:
+    description: 'CSS selector to scope the audit (e.g. #app-root). Only elements within this scope are analysed.'
+    required: false
+    default: ''
   ai-api-key:
     description: 'API key for an OpenAI-compatible LLM provider. If omitted, AI suggestions are skipped.'
     required: false
@@ -97,6 +101,7 @@ runs:
         INPUT_BASELINE: ${{ inputs.baseline }}
         INPUT_CRAWL: ${{ inputs.crawl }}
         INPUT_MAX-PAGES: ${{ inputs.max-pages }}
+        INPUT_AUDIT-SCOPE: ${{ inputs.audit-scope }}
         INPUT_AI-API-KEY: ${{ inputs.ai-api-key }}
         INPUT_AI-BASE-URL: ${{ inputs.ai-base-url }}
         INPUT_AI-MODEL: ${{ inputs.ai-model }}

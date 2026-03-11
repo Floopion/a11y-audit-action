@@ -106,6 +106,7 @@ export function parseInputs(): ActionInputs {
     baselinePath: core.getInput('baseline'),
     crawl: core.getBooleanInput('crawl'),
     maxPages,
+    auditScope: core.getInput('audit-scope'),
     aiApiKey,
     aiBaseUrl: core.getInput('ai-base-url') || 'https://api.openai.com/v1',
     aiModel: core.getInput('ai-model') || 'gpt-4o-mini',
