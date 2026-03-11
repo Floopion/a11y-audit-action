@@ -244,7 +244,6 @@ Example `.a11y-prompt.md`:
 - ~~**v1.1 — Baseline mode** — Store known violations in `.a11y-baseline.json` so PRs only report regressions~~ ✓
 - ~~**v1.1 — Multi-page crawl** — BFS spider from seed URLs, same-origin, configurable depth~~ ✓
 - ~~**v1.2 — AI fix suggestions** — LLM-powered fixes via any OpenAI-compatible provider, scoped to active WCAG level~~ ✓
-- **Next — Historical trend tracking** — Track violation counts over time and surface regressions in PR comments
 
 ## Licence
 
