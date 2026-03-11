@@ -1,5 +1,5 @@
 import type { Result } from 'axe-core';
-import type { AuditResult, BaselineResult, ImpactLevel, WcagLevel } from './types';
+import type { AiSuggestionsMap, AuditResult, BaselineResult, ImpactLevel, WcagLevel } from './types';
 
 const COMMENT_MARKER = '<!-- a11y-audit-action -->';
 const MAX_COMMENT_LENGTH = 60_000;
@@ -21,7 +21,7 @@ function truncate(str: string, max: number): string {
   return str.length > max ? str.slice(0, max) + '…' : str;
 }
 
-function formatViolation(violation: Result): string {
+function formatViolation(violation: Result, aiSuggestion?: string): string {
   const impact = violation.impact ?? 'unknown';
   const emoji = IMPACT_EMOJI[impact] ?? '⚪';
   const tags = violation.tags.filter((t) => t.startsWith('wcag')).join(', ');
@@ -47,6 +47,14 @@ function formatViolation(violation: Result): string {
     md += `\n*...and ${violation.nodes.length - MAX_NODES_PER_VIOLATION} more elements*\n`;
   }
 
+  if (aiSuggestion) {
+    md += `\n> **Suggested fix**\n>\n`;
+    for (const line of aiSuggestion.split('\n')) {
+      md += `> ${line}\n`;
+    }
+    md += '\n';
+  }
+
   return md;
 }
 
@@ -59,7 +67,7 @@ function groupByImpact(violations: Result[]): Map<string, Result[]> {
   return grouped;
 }
 
-export function formatComment(result: AuditResult, wcagLevel: WcagLevel, baselineResult?: BaselineResult): string {
+export function formatComment(result: AuditResult, wcagLevel: WcagLevel, baselineResult?: BaselineResult, suggestions?: AiSuggestionsMap): string {
   const pages = baselineResult ? baselineResult.newPages : result.pages;
   const violationCount = baselineResult ? baselineResult.newViolations : result.totalViolations;
   const passed = violationCount === 0;
@@ -99,7 +107,9 @@ export function formatComment(result: AuditResult, wcagLevel: WcagLevel, baselin
       md += `<details>\n<summary>${emoji} <strong>${impact.charAt(0).toUpperCase() + impact.slice(1)}</strong> — ${violations.length} violation${violations.length === 1 ? '' : 's'}</summary>\n\n`;
 
       for (const v of violations) {
-        md += formatViolation(v) + '\n';
+        const pageSuggestions = suggestions?.get(page.url);
+        const aiSuggestion = pageSuggestions?.get(v.id);
+        md += formatViolation(v, aiSuggestion) + '\n';
       }
 
       md += `</details>\n\n`;

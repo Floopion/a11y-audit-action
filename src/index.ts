@@ -4,6 +4,7 @@ import { runAudit } from './scanner';
 import { formatComment, formatJobSummary } from './comment';
 import { resolvePrNumber, upsertComment } from './github';
 import { loadBaseline, applyBaseline, generateBaseline } from './baseline';
+import { generateSuggestions } from './suggestions';
 
 async function run(): Promise<void> {
   const inputs = parseInputs();
@@ -23,6 +24,10 @@ async function run(): Promise<void> {
   core.setOutput('baseline-violations-count', baselineResult.baselineViolations.toString());
   core.setOutput('baseline-json', JSON.stringify(generateBaseline(result)));
 
+  // AI suggestions — only for new violations, per-page batched
+  const effectivePages = baselineResult ? baselineResult.newPages : result.pages;
+  const suggestions = await generateSuggestions(effectivePages, inputs);
+
   // Job summary — always written
   const summary = formatJobSummary(result, inputs.wcagLevel);
   await core.summary.addRaw(summary).write();
@@ -31,7 +36,7 @@ async function run(): Promise<void> {
   if (inputs.comment) {
     const prNumber = await resolvePrNumber(inputs.token);
     if (prNumber) {
-      const commentBody = formatComment(result, inputs.wcagLevel, baselineResult);
+      const commentBody = formatComment(result, inputs.wcagLevel, baselineResult, suggestions);
       await upsertComment(inputs.token, prNumber, commentBody);
       core.info(`Posted audit results to PR #${prNumber}`);
     } else {

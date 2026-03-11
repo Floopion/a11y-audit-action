@@ -91,6 +91,11 @@ export function parseInputs(): ActionInputs {
     throw new Error(`Invalid max-pages: ${maxPagesRaw}`);
   }
 
+  const aiApiKey = core.getInput('ai-api-key');
+  if (aiApiKey) {
+    core.setSecret(aiApiKey);
+  }
+
   return {
     urls,
     wcagLevel,
@@ -101,5 +106,9 @@ export function parseInputs(): ActionInputs {
     baselinePath: core.getInput('baseline'),
     crawl: core.getBooleanInput('crawl'),
     maxPages,
+    aiApiKey,
+    aiBaseUrl: core.getInput('ai-base-url') || 'https://api.openai.com/v1',
+    aiModel: core.getInput('ai-model') || 'gpt-4o-mini',
+    aiPromptFile: core.getInput('ai-prompt-file'),
   };
 }
