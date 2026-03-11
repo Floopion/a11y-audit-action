@@ -25,6 +25,7 @@ There's a gap in the ecosystem. Existing solutions either cost money, only lint 
 - **Multi-page crawl** — spider same-origin links from a seed URL
 - **Baseline mode** — track known violations so PRs only report regressions
 - **AI fix suggestions** — optional LLM-powered fixes via any OpenAI-compatible provider
+- **Audit scope** — CSS selector scoping for micro frontend architectures
 - Collapsible PR comments grouped by impact severity
 - Auto-detects Vercel/Netlify preview URLs from `deployment_status` events
 - Upserts comments on re-runs (no duplicates)
@@ -148,6 +149,30 @@ Example `.a11y-prompt.md`:
 
 > **Security:** Always pass your API key via `${{ secrets.YOUR_SECRET }}`, never hardcoded. The action masks the key from logs via `core.setSecret()`. Do not use this action with `pull_request_target` if you checkout untrusted PR code — fork PRs could exfiltrate secrets. Use `pull_request` instead.
 
+### With audit scope (micro frontends)
+
+In micro frontend architectures, multiple apps share a page — a shell provides the nav, header, and footer while each app renders into its own root element. Without scoping, every app's audit would flag the same shell violations.
+
+Use `audit-scope` to restrict the audit to your app's DOM subtree:
+
+```yaml
+- uses: Floopion/a11y-audit-action@v1
+  with:
+    urls: https://staging.example.com/dashboard
+    audit-scope: '#dashboard-root'
+    baseline: .a11y-baseline.json
+```
+
+Only elements inside `#dashboard-root` are analysed. The shell team runs their own unscoped audit to cover the shared UI.
+
+This works with any CSS selector — IDs, classes, data attributes:
+
+```yaml
+audit-scope: '[data-app="reporting"]'
+audit-scope: '.my-app-container'
+audit-scope: '#root > main'
+```
+
 ## Inputs
 
 | Input | Default | Description |
@@ -160,6 +185,7 @@ Example `.a11y-prompt.md`:
 | `baseline` | *(none)* | Path to baseline JSON file — only new violations are reported |
 | `crawl` | `false` | Crawl same-origin links discovered on each page |
 | `max-pages` | `10` | Maximum pages to scan when crawling |
+| `audit-scope` | *(entire page)* | CSS selector to scope the audit to a DOM subtree |
 | `ai-api-key` | *(none)* | API key for an OpenAI-compatible LLM provider. If omitted, AI suggestions are skipped |
 | `ai-base-url` | `https://api.openai.com/v1` | OpenAI-compatible API base URL |
 | `ai-model` | `gpt-4o-mini` | Model name for AI suggestions |
@@ -198,6 +224,7 @@ Example `.a11y-prompt.md`:
   ┌─────────────────┐   │  For each URL:        │
   │   Navigate page  │──│  networkidle (30s)    │
   │   Run axe-core   │  │  fallback: DOMready   │
+  │   (audit-scope?) │  │  scope to CSS selector│
   └─────────┬───────┘   └───────────────────────┘
             │
             ├── crawl: true? ──▶ Discover same-origin
@@ -244,6 +271,7 @@ Example `.a11y-prompt.md`:
 - ~~**v1.1 — Baseline mode** — Store known violations in `.a11y-baseline.json` so PRs only report regressions~~ ✓
 - ~~**v1.1 — Multi-page crawl** — BFS spider from seed URLs, same-origin, configurable depth~~ ✓
 - ~~**v1.2 — AI fix suggestions** — LLM-powered fixes via any OpenAI-compatible provider, scoped to active WCAG level~~ ✓
+- ~~**v1.3 — Audit scope** — CSS selector scoping for micro frontend architectures~~ ✓
 
 ## Licence
 
