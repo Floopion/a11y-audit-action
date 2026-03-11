@@ -24,6 +24,7 @@ There's a gap in the ecosystem. Existing solutions either cost money, only lint 
 - WCAG 2.2 AA conformance by default (configurable)
 - **Multi-page crawl** — spider same-origin links from a seed URL
 - **Baseline mode** — track known violations so PRs only report regressions
+- **AI fix suggestions** — optional LLM-powered fixes via any OpenAI-compatible provider
 - Collapsible PR comments grouped by impact severity
 - Auto-detects Vercel/Netlify preview URLs from `deployment_status` events
 - Upserts comments on re-runs (no duplicates)
@@ -96,6 +97,57 @@ Track known violations so only **new** regressions fail the build:
 
 On the first run, the action creates the baseline file. On subsequent runs, only violations **not** in the baseline are reported as new. Commit the baseline file to your repo and update it as you fix issues.
 
+### With AI fix suggestions
+
+Get specific, copy-pasteable fixes for each violation powered by any OpenAI-compatible LLM:
+
+```yaml
+- uses: Floopion/a11y-audit-action@v1
+  with:
+    urls: https://your-site.com
+    ai-api-key: ${{ secrets.AI_API_KEY }}
+    ai-model: gpt-4o-mini
+```
+
+The `ai-api-key` input is optional. If omitted, the action runs normally without AI suggestions — no errors, no warnings.
+
+#### Supported providers
+
+Any provider with an OpenAI-compatible chat completions endpoint works. Pass the provider's base URL via `ai-base-url`:
+
+| Provider | `ai-base-url` | `ai-model` example |
+|----------|---------------|--------------------|
+| OpenAI | *(default)* | `gpt-4o-mini` |
+| Anthropic | `https://api.anthropic.com/v1/` | `claude-sonnet-4-6` |
+| Google Gemini | `https://generativelanguage.googleapis.com/v1beta/openai/` | `gemini-2.5-flash` |
+| DeepSeek | `https://api.deepseek.com` | `deepseek-chat` |
+| Grok (xAI) | `https://api.x.ai/v1` | `grok-3-mini` |
+| GitHub Models | `https://models.github.ai/inference` | `openai/gpt-4o` |
+| Groq | `https://api.groq.com/openai/v1` | `llama-3.3-70b-versatile` |
+| OpenRouter | `https://openrouter.ai/api/v1` | `anthropic/claude-sonnet-4-6` |
+| Ollama (local) | `http://localhost:11434/v1/` | `llama3` |
+
+#### Custom prompt file
+
+Append project-specific guidance to the built-in prompt:
+
+```yaml
+- uses: Floopion/a11y-audit-action@v1
+  with:
+    urls: https://your-site.com
+    ai-api-key: ${{ secrets.AI_API_KEY }}
+    ai-prompt-file: .a11y-prompt.md
+```
+
+Example `.a11y-prompt.md`:
+```markdown
+- We use React Aria components — prefer <Button> over adding aria-* to raw HTML
+- Our design tokens are in Tailwind — use semantic classes, not hex values
+- Use our `visually-hidden` utility class, not `sr-only`
+```
+
+> **Security:** Always pass your API key via `${{ secrets.YOUR_SECRET }}`, never hardcoded. The action masks the key from logs via `core.setSecret()`. Do not use this action with `pull_request_target` if you checkout untrusted PR code — fork PRs could exfiltrate secrets. Use `pull_request` instead.
+
 ## Inputs
 
 | Input | Default | Description |
@@ -108,6 +160,10 @@ On the first run, the action creates the baseline file. On subsequent runs, only
 | `baseline` | *(none)* | Path to baseline JSON file — only new violations are reported |
 | `crawl` | `false` | Crawl same-origin links discovered on each page |
 | `max-pages` | `10` | Maximum pages to scan when crawling |
+| `ai-api-key` | *(none)* | API key for an OpenAI-compatible LLM provider. If omitted, AI suggestions are skipped |
+| `ai-base-url` | `https://api.openai.com/v1` | OpenAI-compatible API base URL |
+| `ai-model` | `gpt-4o-mini` | Model name for AI suggestions |
+| `ai-prompt-file` | *(none)* | Path to a custom prompt file for project-specific guidance |
 | `token` | `github.token` | GitHub token for commenting |
 
 ## Outputs
@@ -159,6 +215,10 @@ On the first run, the action creates the baseline file. On subsequent runs, only
   │   (baseline.ts)     │  fingerprints, separate
   └─────────┬───────────┘  new vs known violations
             │
+            ├── ai-api-key set? ──▶ LLM generates
+            │   (suggestions.ts)     copy-pasteable fixes
+            │                        per page (batched)
+            │
         ┌───┴───┐
         ▼       ▼
   ┌──────────┐ ┌──────────────┐
@@ -183,8 +243,8 @@ On the first run, the action creates the baseline file. On subsequent runs, only
 - ~~**v1.0** — Core scanning, PR comments, job summaries, preview URL detection~~ ✓
 - ~~**v1.1 — Baseline mode** — Store known violations in `.a11y-baseline.json` so PRs only report regressions~~ ✓
 - ~~**v1.1 — Multi-page crawl** — BFS spider from seed URLs, same-origin, configurable depth~~ ✓
+- ~~**v1.2 — AI fix suggestions** — LLM-powered fixes via any OpenAI-compatible provider, scoped to active WCAG level~~ ✓
 - **Next — Historical trend tracking** — Track violation counts over time and surface regressions in PR comments
-- **Next — AI fix suggestions** — An optional LLM pass that examines the actual HTML snippet against the WCAG criterion and generates specific, copy-pasteable fixes. Opt-in via `ai-suggestions: true`
 
 ## Licence
 
