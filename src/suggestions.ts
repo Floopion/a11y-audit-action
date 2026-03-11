@@ -123,8 +123,12 @@ export async function generateSuggestions(
 
   const systemPrompt = loadSystemPrompt(inputs.aiPromptFile, inputs.wcagLevel);
 
-  for (const page of pagesWithViolations) {
+  for (let i = 0; i < pagesWithViolations.length; i++) {
+    const page = pagesWithViolations[i];
     const userPrompt = buildPagePrompt(page);
+
+    // Delay between calls to respect free-tier rate limits
+    if (i > 0) await new Promise((r) => setTimeout(r, 1500));
 
     try {
       const response = await client.chat.completions.create({

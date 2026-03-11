@@ -39,7 +39,8 @@ function formatViolation(violation: Result, aiSuggestion?: string): string {
   md += '| Element | Fix |\n|---------|-----|\n';
   for (const node of nodes) {
     const selector = `\`${truncate(node.target.join(' > '), MAX_HTML_LENGTH)}\``;
-    const fix = node.failureSummary?.split('\n')[0] ?? '';
+    const fixLines = (node.failureSummary ?? '').split('\n').map((l) => l.trim()).filter(Boolean);
+    const fix = fixLines.find((l) => !l.endsWith(':')) ?? fixLines[0] ?? '';
     md += `| ${selector} | ${fix} |\n`;
   }
 
