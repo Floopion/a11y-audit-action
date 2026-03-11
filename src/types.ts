@@ -14,7 +14,18 @@ export interface ActionInputs {
   baselinePath: string;
   crawl: boolean;
   maxPages: number;
+  aiApiKey: string;
+  aiBaseUrl: string;
+  aiModel: string;
+  aiPromptFile: string;
 }
+
+export interface AiSuggestion {
+  ruleId: string;
+  fix: string;
+}
+
+export type AiSuggestionsMap = Map<string, Map<string, string>>;
 
 export interface PageResult {
   url: string;

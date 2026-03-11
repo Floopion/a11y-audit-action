@@ -1,5 +1,5 @@
 name: 'A11y Audit Action'
-description: 'Run automated WCAG 2.2 accessibility audits against rendered pages and post beautiful PR comments'
+description: 'Run automated WCAG 2.2 accessibility audits against rendered pages and post results to your PR'
 author: 'Dion Bedford'
 
 branding:
@@ -38,6 +38,22 @@ inputs:
     description: 'Maximum pages to scan when crawling (ignored if crawl is false)'
     required: false
     default: '10'
+  ai-api-key:
+    description: 'API key for an OpenAI-compatible LLM provider. If omitted, AI suggestions are skipped.'
+    required: false
+    default: ''
+  ai-base-url:
+    description: 'OpenAI-compatible API base URL (supports OpenAI, Anthropic, Gemini, DeepSeek, Grok, GitHub Models, Groq, etc.)'
+    required: false
+    default: 'https://api.openai.com/v1'
+  ai-model:
+    description: 'Model name for AI suggestions (e.g. gpt-4o-mini, gemini-2.5-flash, claude-sonnet-4-6)'
+    required: false
+    default: 'gpt-4o-mini'
+  ai-prompt-file:
+    description: 'Path to a custom prompt file to append project-specific guidance for AI suggestions'
+    required: false
+    default: ''
   token:
     description: 'GitHub token for commenting on PRs'
     required: false
@@ -81,4 +97,8 @@ runs:
         INPUT_BASELINE: ${{ inputs.baseline }}
         INPUT_CRAWL: ${{ inputs.crawl }}
         INPUT_MAX-PAGES: ${{ inputs.max-pages }}
+        INPUT_AI-API-KEY: ${{ inputs.ai-api-key }}
+        INPUT_AI-BASE-URL: ${{ inputs.ai-base-url }}
+        INPUT_AI-MODEL: ${{ inputs.ai-model }}
+        INPUT_AI-PROMPT-FILE: ${{ inputs.ai-prompt-file }}
         INPUT_TOKEN: ${{ inputs.token }}
