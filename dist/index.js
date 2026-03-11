@@ -43686,18 +43686,25 @@ function loadDefaultPrompt() {
         return 'You are an accessibility expert. Generate specific, copy-pasteable fixes for each WCAG violation.';
     }
 }
-function loadSystemPrompt(promptFile) {
-    const defaultPrompt = loadDefaultPrompt();
-    if (!promptFile)
-        return defaultPrompt;
-    try {
-        const userPrompt = fs.readFileSync(promptFile, 'utf-8');
-        return `${defaultPrompt}\n\n## Project-specific guidance\n\n${userPrompt}`;
+const WCAG_LEVEL_DESCRIPTION = {
+    wcag2a: 'WCAG 2.0 Level A only. Focus on Level A criteria (e.g. 1.1.1, 2.1.1, 4.1.2). Do not suggest fixes for Level AA criteria like colour contrast (1.4.3) or reflow (1.4.10).',
+    wcag2aa: 'WCAG 2.0 Level AA. Includes Level A + AA criteria (e.g. 1.4.3 contrast, 1.4.4 resize text, 2.4.7 focus visible).',
+    wcag21aa: 'WCAG 2.1 Level AA. Includes all 2.0 criteria plus 2.1 additions (e.g. 1.3.4 orientation, 1.4.10 reflow, 1.4.11 non-text contrast, 2.5.1 pointer gestures).',
+    wcag22aa: 'WCAG 2.2 Level AA (full). Includes all prior criteria plus 2.2 additions: 2.4.11 Focus Not Obscured, 2.5.7 Dragging Movements, 2.5.8 Target Size (24px minimum), 3.3.7 Redundant Entry, 3.3.8 Accessible Authentication.',
+};
+function loadSystemPrompt(promptFile, wcagLevel) {
+    let prompt = loadDefaultPrompt();
+    prompt += `\n\n## Active WCAG Scope\n\nThe audit is running at **${wcagLevel}**. ${WCAG_LEVEL_DESCRIPTION[wcagLevel]}\n\nOnly suggest fixes relevant to criteria within this scope. Do not reference criteria outside this level.`;
+    if (promptFile) {
+        try {
+            const userPrompt = fs.readFileSync(promptFile, 'utf-8');
+            prompt += `\n\n## Project-specific guidance\n\n${userPrompt}`;
+        }
+        catch {
+            core.warning(`Could not read ai-prompt-file at ${promptFile} — using default prompt`);
+        }
     }
-    catch {
-        core.warning(`Could not read ai-prompt-file at ${promptFile} — using default prompt`);
-        return defaultPrompt;
-    }
+    return prompt;
 }
 function buildViolationContext(violation) {
     const tags = violation.tags.filter((t) => t.startsWith('wcag')).join(', ');
@@ -43755,7 +43762,7 @@ async function generateSuggestions(pages, inputs) {
         apiKey: inputs.aiApiKey,
         baseURL: inputs.aiBaseUrl,
     });
-    const systemPrompt = loadSystemPrompt(inputs.aiPromptFile);
+    const systemPrompt = loadSystemPrompt(inputs.aiPromptFile, inputs.wcagLevel);
     for (const page of pagesWithViolations) {
         const userPrompt = buildPagePrompt(page);
         try {
