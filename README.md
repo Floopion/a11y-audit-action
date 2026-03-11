@@ -53,7 +53,11 @@ jobs:
           urls: https://your-site.com
 ```
 
-### With Vercel preview URL (zero-config)
+### With preview URL (recommended)
+
+Using `deployment_status` lets you scan the actual **preview deployment** rather than production. This means accessibility fixes are validated before merging — not after.
+
+This works with any provider that creates GitHub deployments (Vercel, Netlify, Render, Railway, AWS Amplify, etc.). The action auto-detects the preview URL from the deployment event payload.
 
 ```yaml
 on: deployment_status
@@ -72,6 +76,15 @@ jobs:
 ```
 
 > **Note:** The `pull-requests: write` permission is required for the action to post PR comments. Without it you'll get a "Resource not accessible by integration" error.
+>
+> If your deploy tool doesn't create GitHub deployments, you can construct the preview URL from the branch ref instead:
+> ```yaml
+> on: pull_request
+> # ...
+>     - uses: Floopion/a11y-audit-action@v1
+>       with:
+>         urls: https://${{ github.head_ref }}.preview.example.com
+> ```
 
 ### With multi-page crawl
 
@@ -142,9 +155,9 @@ Append project-specific guidance to the built-in prompt:
 
 Example `.a11y-prompt.md`:
 ```markdown
-- We use React Aria components — prefer <Button> over adding aria-* to raw HTML
-- Our design tokens are in Tailwind — use semantic classes, not hex values
-- Use our `visually-hidden` utility class, not `sr-only`
+- We use Material UI — prefer <TextField> over raw <input> with aria-* attributes
+- Our colour tokens are in CSS custom properties — suggest var(--color-error), not hex values
+- Always suggest fixes using our existing component library before raw HTML
 ```
 
 > **Security:** Always pass your API key via `${{ secrets.YOUR_SECRET }}`, never hardcoded. The action masks the key from logs via `core.setSecret()`. Do not use this action with `pull_request_target` if you checkout untrusted PR code — fork PRs could exfiltrate secrets. Use `pull_request` instead.
