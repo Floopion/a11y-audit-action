@@ -43696,12 +43696,19 @@ function loadSystemPrompt(promptFile, wcagLevel) {
     let prompt = loadDefaultPrompt();
     prompt += `\n\n## Active WCAG Scope\n\nThe audit is running at **${wcagLevel}**. ${WCAG_LEVEL_DESCRIPTION[wcagLevel]}\n\nOnly suggest fixes relevant to criteria within this scope. Do not reference criteria outside this level.`;
     if (promptFile) {
-        try {
-            const userPrompt = fs.readFileSync(promptFile, 'utf-8');
-            prompt += `\n\n## Project-specific guidance\n\n${userPrompt}`;
+        const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
+        const resolved = path.resolve(workspace, promptFile);
+        if (!resolved.startsWith(workspace)) {
+            core.warning(`ai-prompt-file path escapes workspace — ignoring`);
         }
-        catch {
-            core.warning(`Could not read ai-prompt-file at ${promptFile} — using default prompt`);
+        else {
+            try {
+                const userPrompt = fs.readFileSync(resolved, 'utf-8');
+                prompt += `\n\n## Project-specific guidance\n\n${userPrompt}`;
+            }
+            catch {
+                core.warning(`Could not read ai-prompt-file at ${resolved} — using default prompt`);
+            }
         }
     }
     return prompt;
@@ -43784,7 +43791,9 @@ async function generateSuggestions(pages, inputs) {
         }
         catch (error) {
             const msg = error instanceof Error ? error.message : String(error);
-            core.warning(`AI suggestions failed for ${page.url}: ${msg}`);
+            // Sanitise error — avoid leaking auth headers or key fragments
+            const safeMsg = msg.replace(/Bearer\s+\S+/gi, 'Bearer ***').replace(/api[_-]?key[=:]\s*\S+/gi, 'api_key=***');
+            core.warning(`AI suggestions failed for ${page.url}: ${safeMsg}`);
         }
     }
     core.info(`AI suggestions complete — ${suggestionsMap.size} page(s) processed`);
